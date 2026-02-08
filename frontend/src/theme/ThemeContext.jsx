@@ -10,6 +10,7 @@ export const ThemeProvider = ({ children }) => {
 
   useEffect(() => {
     localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+    document.documentElement.classList.add('theme-glass');
     if (isDarkMode) {
         document.documentElement.classList.add('dark');
     } else {

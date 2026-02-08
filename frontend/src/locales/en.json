@@ -99,6 +99,8 @@
     "saveHtml": "Save HTML Snapshot",
     "autoDownload": "Auto Download Attachments",
     "attachmentTypes": "File Extensions",
+    "attachmentTypesHelp": "Pick common extensions first; optionally add custom ones below (comma-separated, no dot).",
+    "attachmentTypesCustom": "Custom extensions (optional)",
     "trackLinks": "Track link list changes",
     "trackLinksHelp": "Extract and diff link list; useful for article list pages.",
     "downloadFromNewLinks": "Scan & download attachments from new links",

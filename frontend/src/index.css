@@ -8,6 +8,114 @@ body {
   min-height: 100vh;
 }
 
+html.theme-glass {
+  --glass-bg: rgba(255, 255, 255, 0.60);
+  --glass-bg-strong: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.26);
+  --glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+  --glass-shadow-soft: 0 6px 24px rgba(0, 0, 0, 0.10);
+  --glass-blur: 18px;
+}
+
+html.dark.theme-glass {
+  --glass-bg: rgba(20, 20, 24, 0.55);
+  --glass-bg-strong: rgba(28, 28, 30, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  --glass-shadow-soft: 0 6px 24px rgba(0, 0, 0, 0.35);
+  --glass-blur: 18px;
+}
+
+html.theme-glass body {
+  background:
+    radial-gradient(900px circle at 15% 10%, rgba(0, 122, 255, 0.22), transparent 40%),
+    radial-gradient(900px circle at 85% 15%, rgba(175, 82, 222, 0.18), transparent 45%),
+    radial-gradient(1100px circle at 50% 95%, rgba(52, 199, 89, 0.12), transparent 50%),
+    linear-gradient(180deg, rgba(242, 244, 248, 0.85), rgba(245, 246, 250, 0.70));
+  background-attachment: fixed;
+}
+
+html.dark.theme-glass body {
+  background:
+    radial-gradient(900px circle at 15% 10%, rgba(10, 132, 255, 0.22), transparent 40%),
+    radial-gradient(900px circle at 85% 15%, rgba(191, 90, 242, 0.20), transparent 45%),
+    radial-gradient(1100px circle at 50% 95%, rgba(48, 209, 88, 0.10), transparent 50%),
+    linear-gradient(180deg, rgba(10, 10, 14, 0.92), rgba(14, 14, 18, 0.86));
+  background-attachment: fixed;
+}
+
+.theme-glass .ant-card,
+.theme-glass .ant-layout-header,
+.theme-glass .ant-drawer-content,
+.theme-glass .ant-modal-content,
+.theme-glass .ant-popover-inner,
+.theme-glass .ant-dropdown-menu,
+.theme-glass .ant-select-dropdown,
+.theme-glass .ant-layout-sider,
+.theme-glass .ant-table-container,
+.theme-glass .ant-input-affix-wrapper,
+.theme-glass .ant-input,
+.theme-glass .ant-select-selector {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow-soft);
+}
+
+.theme-glass .ant-dropdown-menu,
+.theme-glass .ant-select-dropdown,
+.theme-glass .ant-popover-inner {
+  background: var(--glass-bg-strong);
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .theme-glass .ant-card,
+  .theme-glass .ant-layout-header,
+  .theme-glass .ant-drawer-content,
+  .theme-glass .ant-modal-content,
+  .theme-glass .ant-popover-inner,
+  .theme-glass .ant-dropdown-menu,
+  .theme-glass .ant-select-dropdown,
+  .theme-glass .ant-layout-sider,
+  .theme-glass .ant-table-container,
+  .theme-glass .ant-input-affix-wrapper,
+  .theme-glass .ant-input,
+  .theme-glass .ant-select-selector {
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  }
+}
+
+.theme-glass .ant-layout-header {
+  position: sticky;
+  top: 12px;
+  z-index: 10;
+}
+
+.theme-glass .ant-card {
+  overflow: hidden;
+}
+
+.theme-glass .ant-card-bordered {
+  border: 1px solid var(--glass-border);
+}
+
+.theme-glass .ant-menu {
+  background: transparent;
+}
+
+.theme-glass .ant-layout-sider-children {
+  background: transparent;
+}
+
+.theme-glass .ant-btn-default {
+  background: var(--glass-bg);
+  border-color: var(--glass-border);
+}
+
+.theme-glass .ant-btn-default:hover {
+  background: var(--glass-bg-strong);
+}
+
 /* Responsive adjustments */
 @media (min-width: 992px) {
   .desktop-sider {

@@ -128,7 +128,7 @@ const MainLayout = ({ children }) => {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ minHeight: '100vh' }} className="app-shell">
       {/* Desktop Sider */}
       <Sider 
         breakpoint="lg" 
@@ -140,11 +140,23 @@ const MainLayout = ({ children }) => {
         className="desktop-sider"
         width={220}
       >
-        <div className="demo-logo-vertical" style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 18, fontWeight: 'bold' }}>
+        <div
+          className="demo-logo-vertical"
+          style={{
+            height: 64,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: isDarkMode ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.88)',
+            fontSize: 18,
+            fontWeight: 700,
+            letterSpacing: 0.2,
+          }}
+        >
            {t('app.title')}
         </div>
         <Menu
-          theme="dark"
+          theme={isDarkMode ? 'dark' : 'light'}
           mode="inline"
           selectedKeys={[getSelectedKey()]}
           defaultOpenKeys={['/monitors']}
@@ -159,6 +171,7 @@ const MainLayout = ({ children }) => {
         open={mobileMenuOpen}
         styles={{ body: { padding: 0 } }}
         width={250}
+        className="glass-drawer"
       >
          <Menu
           mode="inline"
@@ -170,7 +183,18 @@ const MainLayout = ({ children }) => {
       </Drawer>
 
       <Layout>
-        <Header style={{ padding: '0 24px', background: colorBgContainer, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 1px 4px rgba(0,21,41,.08)', zIndex: 1 }}>
+        <Header
+          className="app-header"
+          style={{
+            margin: '16px 24px 0',
+            padding: '0 18px',
+            background: 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderRadius: 18,
+          }}
+        >
             <div style={{ display: 'flex', alignItems: 'center' }}>
                 <Button 
                     type="text" 
@@ -178,7 +202,7 @@ const MainLayout = ({ children }) => {
                     onClick={() => setMobileMenuOpen(true)}
                     className="mobile-menu-btn"
                 />
-                <span style={{ fontSize: 18, fontWeight: 600, marginLeft: 16 }}>{t('app.title')}</span>
+                <span style={{ fontSize: 18, fontWeight: 700, marginLeft: 16 }}>{t('app.title')}</span>
             </div>
             
             <Space size="large">
@@ -193,11 +217,11 @@ const MainLayout = ({ children }) => {
                 </Dropdown>
 
                 <Dropdown menu={userMenu}>
-                    <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#1890ff', cursor: 'pointer' }} />
+                    <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#0A84FF', cursor: 'pointer' }} />
                 </Dropdown>
             </Space>
         </Header>
-        <Content style={{ margin: '24px 24px', overflow: 'initial' }}>
+        <Content className="app-content" style={{ margin: '16px 24px 24px', overflow: 'initial' }}>
             {children}
         </Content>
       </Layout>

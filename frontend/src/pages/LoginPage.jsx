@@ -28,9 +28,9 @@ const LoginPage = () => {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh', justifyContent: 'center', alignItems: 'center' }}>
+    <Layout style={{ minHeight: '100vh', justifyContent: 'center', alignItems: 'center' }} className="login-page">
       <Content style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' }}>
-        <Card style={{ width: 350, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} bordered={false}>
+        <Card style={{ width: 360 }} bordered={false}>
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
              <Title level={3}>WebMonitor</Title>
              <Typography.Text type="secondary">Admin Access</Typography.Text>

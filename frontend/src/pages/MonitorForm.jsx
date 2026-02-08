@@ -7,6 +7,16 @@ import { useTranslation } from 'react-i18next';
 
 const { Option } = Select;
 
+const parseExtensions = (value) => {
+  const parts = String(value || '')
+    .split(',')
+    .map((x) => String(x || '').trim().toLowerCase().replace(/^\./, ''))
+    .filter(Boolean);
+  return Array.from(new Set(parts));
+};
+
+const joinExtensions = (exts) => Array.from(new Set((exts || []).map((x) => String(x || '').trim().toLowerCase().replace(/^\./, '')).filter(Boolean))).join(',');
+
 const MonitorForm = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -15,6 +25,7 @@ const MonitorForm = () => {
   const isEdit = !!id;
   const { message } = App.useApp();
   const { t } = useTranslation();
+  const attachmentPreset = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', '7z'];
 
   useEffect(() => {
     if (isEdit) {
@@ -295,11 +306,60 @@ const MonitorForm = () => {
                              {({ getFieldValue }) =>
                                 (getFieldValue('downloadAttachments') || getFieldValue('downloadAttachmentsFromNewLinks')) ? (
                                     <Form.Item
-                                    name="attachmentTypes"
-                                    label={t('monitorForm.attachmentTypes')}
-                                    help="Comma separated extensions (e.g. pdf,doc,zip)"
+                                      shouldUpdate={(p, c) => p.attachmentTypes !== c.attachmentTypes}
+                                      noStyle
                                     >
-                                    <Input />
+                                      {({ getFieldValue, setFieldsValue }) => {
+                                        const current = parseExtensions(getFieldValue('attachmentTypes'));
+                                        const presetSelected = current.filter((x) => attachmentPreset.includes(x));
+                                        const customSelected = current.filter((x) => !attachmentPreset.includes(x));
+
+                                        const update = ({ nextPresetSelected, nextCustomText }) => {
+                                          const customFromText = parseExtensions(nextCustomText);
+                                          const merged = joinExtensions([
+                                            ...(nextPresetSelected ?? presetSelected),
+                                            ...customFromText,
+                                          ]);
+                                          setFieldsValue({ attachmentTypes: merged });
+                                        };
+
+                                        return (
+                                          <>
+                                            <Form.Item
+                                              label={t('monitorForm.attachmentTypes')}
+                                              extra={t('monitorForm.attachmentTypesHelp')}
+                                            >
+                                              <Checkbox.Group
+                                                value={presetSelected}
+                                                options={attachmentPreset.map((v) => ({ label: v.toUpperCase(), value: v }))}
+                                                onChange={(vals) =>
+                                                  update({
+                                                    nextPresetSelected: vals,
+                                                    nextCustomText: customSelected.join(','),
+                                                  })
+                                                }
+                                              />
+                                            </Form.Item>
+                                            <Form.Item
+                                              label={t('monitorForm.attachmentTypesCustom')}
+                                            >
+                                              <Input
+                                                value={customSelected.join(',')}
+                                                onChange={(e) =>
+                                                  update({
+                                                    nextPresetSelected: presetSelected,
+                                                    nextCustomText: e.target.value,
+                                                  })
+                                                }
+                                                placeholder="例如：ppt,pptx,txt"
+                                              />
+                                            </Form.Item>
+                                            <Form.Item name="attachmentTypes" hidden>
+                                              <Input />
+                                            </Form.Item>
+                                          </>
+                                        );
+                                      }}
                                     </Form.Item>
                                 ) : null
                             }

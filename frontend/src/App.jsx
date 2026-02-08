@@ -36,14 +36,39 @@ axios.interceptors.response.use(
 
 const AppContent = () => {
   const { isDarkMode } = useTheme();
+  const glass = isDarkMode
+    ? {
+        colorPrimary: '#0A84FF',
+        colorBgLayout: 'transparent',
+        colorBgContainer: 'rgba(20, 20, 24, 0.55)',
+        colorBgElevated: 'rgba(28, 28, 30, 0.72)',
+        colorBorderSecondary: 'rgba(255, 255, 255, 0.10)',
+        colorText: 'rgba(255, 255, 255, 0.92)',
+        colorTextSecondary: 'rgba(255, 255, 255, 0.68)',
+        borderRadius: 14,
+        borderRadiusLG: 16,
+        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.45)',
+        boxShadowSecondary: '0 6px 24px rgba(0, 0, 0, 0.35)',
+      }
+    : {
+        colorPrimary: '#007AFF',
+        colorBgLayout: 'transparent',
+        colorBgContainer: 'rgba(255, 255, 255, 0.60)',
+        colorBgElevated: 'rgba(255, 255, 255, 0.78)',
+        colorBorderSecondary: 'rgba(255, 255, 255, 0.26)',
+        colorText: 'rgba(0, 0, 0, 0.88)',
+        colorTextSecondary: 'rgba(0, 0, 0, 0.55)',
+        borderRadius: 14,
+        borderRadiusLG: 16,
+        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.12)',
+        boxShadowSecondary: '0 6px 24px rgba(0, 0, 0, 0.10)',
+      };
 
   return (
     <ConfigProvider
       theme={{
         algorithm: isDarkMode ? theme.darkAlgorithm : theme.defaultAlgorithm,
-        token: {
-          colorPrimary: '#1677ff',
-        },
+        token: glass,
       }}
     >
       <AntdApp>

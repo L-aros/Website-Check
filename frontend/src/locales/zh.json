@@ -99,6 +99,8 @@
     "saveHtml": "保存网页快照",
     "autoDownload": "自动下载附件",
     "attachmentTypes": "文件后缀名",
+    "attachmentTypesHelp": "优先勾选常用后缀；下方可手动补充（逗号分隔，不带点）。",
+    "attachmentTypesCustom": "自定义后缀（备用）",
     "trackLinks": "监控页面链接变化",
     "trackLinksHelp": "提取链接集合并检测新增/删除/变化；可用于文章列表类页面。",
     "downloadFromNewLinks": "新增链接时查找并下载附件",
