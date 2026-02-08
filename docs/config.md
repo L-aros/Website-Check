@@ -13,10 +13,19 @@
 - `JWT_SECRET`：JWT 签名密钥（务必随机且保密）
 
 ### 1.2 数据库（生产环境必填）
+本项目支持两种数据库模式：MySQL（默认）与 SQLite（单机）。通过 `DB_DIALECT` 切换。
+
+MySQL（默认）：
+- `DB_DIALECT=mysql`
 - `DB_HOST`：MySQL 地址
 - `DB_NAME`：数据库名
 - `DB_USER`：用户名
 - `DB_PASS`：密码
+
+SQLite（单机部署/轻量部署）：
+- `DB_DIALECT=sqlite`
+- `DB_STORAGE`：SQLite 文件路径，例如 `./data/website_check.sqlite`
+  - 说明：SQLite 适合单机部署；不建议多实例同时写入同一个 SQLite 文件。
 
 ### 1.3 稳定性（推荐）
 - `MAX_CONCURRENT_CHECKS`：全局同时执行的监控检查数上限（默认 2）

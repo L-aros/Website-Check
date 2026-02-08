@@ -17,10 +17,18 @@ Linux 常见依赖（按发行版略有差异）：
 - `PORT=3000`
 - `ADMIN_PASSWORD=...`
 - `JWT_SECRET=...`（务必随机且保密）
-- `DB_HOST=...`
-- `DB_NAME=...`
-- `DB_USER=...`
-- `DB_PASS=...`
+
+数据库（两种模式二选一）：
+- MySQL（默认）：
+  - `DB_DIALECT=mysql`
+  - `DB_HOST=...`
+  - `DB_NAME=...`
+  - `DB_USER=...`
+  - `DB_PASS=...`
+- SQLite（单机部署/轻量部署）：
+  - `DB_DIALECT=sqlite`
+  - `DB_STORAGE=./data/website_check.sqlite`
+  - 说明：SQLite 不适合多实例同时写入；建议只跑一个后端实例。
 
 可选稳定性配置：
 - `MAX_CONCURRENT_CHECKS=2`（全局并发执行检查上限）

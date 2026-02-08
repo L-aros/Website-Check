@@ -4,7 +4,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const main = async () => {
   const baseUrl = 'http://localhost:3000';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  const adminPassword = String(process.env.ADMIN_PASSWORD || '').trim();
+  if (!adminPassword) throw new Error('Missing ADMIN_PASSWORD');
   const targetUrl = 'https://www.lnzsks.com/listinfo/NewsList_2401_1.html';
 
   const loginRes = await axios.post(`${baseUrl}/api/auth/login`, { password: adminPassword });

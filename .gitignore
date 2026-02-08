@@ -18,6 +18,11 @@
 
 # runtime storage (generated)
 backend/storage/
+backend/data/
+
+# docker local volumes
+docker-data/
+docker-storage/
 
 # local notes
 项目需求.md

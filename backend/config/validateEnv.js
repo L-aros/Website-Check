@@ -6,10 +6,21 @@ const required = (key) => {
 const validateEnv = () => {
   const nodeEnv = String(process.env.NODE_ENV || '').trim().toLowerCase();
   const isProd = nodeEnv === 'production';
+  const dialect = String(process.env.DB_DIALECT || 'mysql').trim().toLowerCase();
 
   const missing = [];
   if (isProd) {
-    for (const k of ['JWT_SECRET', 'ADMIN_PASSWORD', 'DB_NAME', 'DB_USER', 'DB_PASS', 'DB_HOST']) {
+    const base = ['JWT_SECRET', 'ADMIN_PASSWORD'];
+    for (const k of base) {
+      const m = required(k);
+      if (m) missing.push(m);
+    }
+
+    const dbKeys =
+      dialect === 'sqlite'
+        ? ['DB_STORAGE']
+        : ['DB_NAME', 'DB_USER', 'DB_PASS', 'DB_HOST'];
+    for (const k of dbKeys) {
       const m = required(k);
       if (m) missing.push(m);
     }

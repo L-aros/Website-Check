@@ -6,7 +6,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const main = async () => {
   const baseUrl = 'http://localhost:3000';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  const adminPassword = String(process.env.ADMIN_PASSWORD || '').trim();
+  if (!adminPassword) throw new Error('Missing ADMIN_PASSWORD');
   const listUrl = 'http://localhost:5174/test-pages/list.html';
   const archiveDir = path.join(__dirname, '../storage/archives');
 
@@ -60,4 +61,3 @@ main().catch((e) => {
   console.error(e.message || e);
   process.exit(1);
 });
-

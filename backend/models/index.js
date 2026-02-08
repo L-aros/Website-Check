@@ -6,6 +6,7 @@ const AppSetting = require('./AppSetting');
 const AttachmentMonitor = require('./AttachmentMonitor');
 const AttachmentLog = require('./AttachmentLog');
 const MonitorLink = require('./MonitorLink');
+const { logger } = require('../utils/logger');
 
 PageMonitor.hasMany(NotificationLog, { foreignKey: 'monitorId' });
 NotificationLog.belongsTo(PageMonitor, { foreignKey: 'monitorId' });
@@ -28,7 +29,7 @@ MonitorLink.belongsTo(PageMonitor, { foreignKey: 'monitorId' });
 const syncDatabase = async () => {
   try {
     await sequelize.authenticate();
-    console.log('Database connection has been established successfully.');
+    logger.info({}, 'db_connected');
     
     const nodeEnv = String(process.env.NODE_ENV || '').trim().toLowerCase();
     const isProd = nodeEnv === 'production';
@@ -48,10 +49,10 @@ const syncDatabase = async () => {
     } else {
       await sequelize.sync();
     }
-    console.log('All models were synchronized successfully.');
+    logger.info({ syncAlter, syncForce, isProd }, 'db_synced');
     return true;
   } catch (error) {
-    console.error('Unable to connect to the database:', error);
+    logger.error({ err: error }, 'db_connect_failed');
     return false;
   }
 };

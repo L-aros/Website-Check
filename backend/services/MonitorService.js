@@ -8,8 +8,12 @@ const { Op } = require('sequelize');
 const notificationService = require('./NotificationService');
 const settingsService = require('./SettingsService');
 const attachmentLoggingService = require('./AttachmentLoggingService');
+const { logger } = require('../utils/logger');
 
 class MonitorService {
+  constructor() {
+    this.log = logger.child({ module: 'MonitorService' });
+  }
   escapeHtmlAttr(value) {
     return String(value)
       .replace(/&/g, '&amp;')
@@ -451,9 +455,15 @@ class MonitorService {
       const settings = await settingsService.getAll();
       const cutoff = this.parseDateFilter(settings.attachmentDateAfter);
 
-      browser = await puppeteer.launch({
+      const launchOptions = {
         headless: 'new',
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      };
+      const executablePath = String(process.env.PUPPETEER_EXECUTABLE_PATH || '').trim();
+      if (executablePath) launchOptions.executablePath = executablePath;
+
+      browser = await puppeteer.launch({
+        ...launchOptions,
       });
       const page = await browser.newPage();
       
@@ -802,7 +812,7 @@ class MonitorService {
       }
 
     } catch (error) {
-      console.error(`Scraping error for ${monitor.url}:`, error);
+      this.log.error({ err: error, monitorId: monitor.id, url: monitor.url }, 'scrape_error');
     } finally {
       if (browser) await browser.close();
     }

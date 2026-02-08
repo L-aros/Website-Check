@@ -1,12 +1,14 @@
 const cron = require('node-cron');
 const { PageMonitor } = require('../models');
 const monitorService = require('./MonitorService');
+const { logger } = require('../utils/logger');
 
 // Store running tasks in memory
 const tasks = new Map();
 
 class SchedulerService {
   constructor() {
+    this.log = logger.child({ module: 'SchedulerService' });
     this.queue = [];
     this.runningMonitorIds = new Set();
     this.activeCount = 0;
@@ -32,7 +34,7 @@ class SchedulerService {
       Promise.resolve()
         .then(job.runner)
         .catch((e) => {
-          console.error(`Monitor ${job.monitorId} check failed:`, e);
+          this.log.error({ err: e, monitorId: job.monitorId }, 'check_failed');
         })
         .finally(() => {
           this.runningMonitorIds.delete(job.monitorId);
@@ -43,7 +45,7 @@ class SchedulerService {
   }
 
   async init() {
-    console.log('Initializing Scheduler...');
+    this.log.info({ maxConcurrent: this.maxConcurrent }, 'init_start');
     const monitors = await PageMonitor.findAll({ where: { status: 'active' } });
     
     // Clear existing tasks
@@ -52,7 +54,7 @@ class SchedulerService {
     for (const monitor of monitors) {
       this.scheduleTask(monitor);
     }
-    console.log(`Scheduled ${tasks.size} tasks.`);
+    this.log.info({ scheduledCount: tasks.size }, 'init_done');
   }
 
   scheduleTask(monitor) {
@@ -66,12 +68,12 @@ class SchedulerService {
     // Validate cron expression, fallback to default if invalid
     let frequency = monitor.frequency;
     if (!cron.validate(frequency)) {
-      console.warn(`Invalid cron expression for monitor ${monitor.id}: ${frequency}. Using default.`);
+      this.log.warn({ monitorId: monitor.id, frequency }, 'invalid_cron_fallback');
       frequency = '*/30 * * * *';
     }
 
     const task = cron.schedule(frequency, () => {
-      console.log(`Running scheduled check for monitor ${monitor.id}`);
+      this.log.info({ monitorId: monitor.id }, 'scheduled_check');
       this.enqueueCheck(monitor.id, async () => {
         const fresh = await PageMonitor.findByPk(monitor.id);
         if (!fresh || fresh.status !== 'active') return;

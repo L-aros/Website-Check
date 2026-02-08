@@ -6,7 +6,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const main = async () => {
   const baseUrl = 'http://localhost:3000';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  const adminPassword = String(process.env.ADMIN_PASSWORD || '').trim();
+  if (!adminPassword) throw new Error('Missing ADMIN_PASSWORD');
 
   const linksPath = path.join(__dirname, '../../frontend/public/test-pages/links.json');
   const downloadsDir = path.join(__dirname, '../storage/downloads');

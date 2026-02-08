@@ -1,0 +1,16 @@
+services:
+  website-check:
+    build: .
+    image: website-check:local
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.docker
+    environment:
+      NODE_ENV: production
+      DB_DIALECT: sqlite
+      DB_STORAGE: /data/website_check.sqlite
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+    volumes:
+      - ./docker-data:/data
+      - ./docker-storage:/app/backend/storage
