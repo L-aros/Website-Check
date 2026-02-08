@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test List</title>
+  </head>
+  <body>
+    <h1>List</h1>
+    <div id="list"></div>
+    <script>
+      (async function () {
+        const res = await fetch('/test-pages/links.json', { cache: 'no-store' });
+        const data = await res.json();
+        const root = document.getElementById('list');
+        root.innerHTML = '';
+        for (const item of data.links || []) {
+          const a = document.createElement('a');
+          a.href = item.url;
+          a.textContent = item.title || item.url;
+          const div = document.createElement('div');
+          div.appendChild(a);
+          root.appendChild(div);
+        }
+      })();
+    </script>
+  </body>
+</html>
+

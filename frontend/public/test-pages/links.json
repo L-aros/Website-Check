@@ -1,0 +1,16 @@
+{
+  "links": [
+    {
+      "title": "A",
+      "url": "/test-pages/a.html"
+    },
+    {
+      "title": "B",
+      "url": "/test-pages/b.html"
+    },
+    {
+      "title": "C",
+      "url": "/test-pages/c.html"
+    }
+  ]
+}

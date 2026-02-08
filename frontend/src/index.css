@@ -1,0 +1,41 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Responsive adjustments */
+@media (min-width: 992px) {
+  .desktop-sider {
+    display: block !important;
+  }
+  .mobile-menu-btn {
+    display: none !important;
+  }
+}
+
+@media (max-width: 991px) {
+  .desktop-sider {
+    display: none !important;
+  }
+}
+
+/* Scrollbar beautification */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
