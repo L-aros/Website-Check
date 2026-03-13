@@ -7,15 +7,15 @@ RUN npm run build
 
 FROM node:20.17.0-bookworm AS backend-deps
 WORKDIR /app/backend
-RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential python3 python-is-python3 pkg-config libsqlite3-dev && rm -rf /var/lib/apt/lists/*
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 COPY backend/package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts && npm rebuild sqlite3 --build-from-source
 COPY backend/ ./
 
 FROM node:20.17.0-bookworm-slim AS runtime
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends chromium ca-certificates fonts-noto-cjk && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends chromium ca-certificates fonts-noto-cjk libsqlite3-0 && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV DB_DIALECT=sqlite
