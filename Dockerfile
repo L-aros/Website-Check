@@ -9,9 +9,11 @@ FROM node:20.17.0-bookworm AS backend-deps
 WORKDIR /app/backend
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential python3 python-is-python3 pkg-config libsqlite3-dev ca-certificates && rm -rf /var/lib/apt/lists/*
 ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_SKIP_BROWSER_DOWNLOAD=true
 ENV npm_config_python=/usr/bin/python3
 COPY backend/package*.json ./
-RUN npm ci --omit=dev
+RUN PUPPETEER_SKIP_DOWNLOAD=true PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true PUPPETEER_SKIP_BROWSER_DOWNLOAD=true npm ci --omit=dev
 COPY backend/ ./
 
 FROM node:20.17.0-bookworm-slim AS runtime
