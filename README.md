@@ -295,6 +295,27 @@ npm start
 
 如果后续部署到有 Docker 的环境，可直接基于这套文件进行一键启动。
 
+### GitHub 自动构建与发布
+
+仓库已提供 GitHub Actions 工作流：
+- [docker-publish.yml](.github/workflows/docker-publish.yml)
+
+触发条件：
+- 推送到 `main`
+- 推送 `v*` 标签
+- 手动触发 `workflow_dispatch`
+
+发布目标：
+- `ghcr.io/l-aros/website-check`
+
+常用镜像标签：
+- `ghcr.io/l-aros/website-check:latest`
+- `ghcr.io/l-aros/website-check:main`
+- `ghcr.io/l-aros/website-check:sha-<commit>`
+- `ghcr.io/l-aros/website-check:vX.Y.Z`
+
+首次使用时，如果需要公开拉取，请在 GitHub 包页面把镜像可见性调整为 public。
+
 ## 常见问题
 
 ### 1. 登录成功，但监控接口失败
