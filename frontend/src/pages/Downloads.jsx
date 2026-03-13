@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Card, Input, Select, Table, Button, Space, Typography } from 'antd';
 import { DownloadOutlined, HistoryOutlined } from '@ant-design/icons';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import api from '../lib/api';
 
 const { Text } = Typography;
 
@@ -32,7 +32,7 @@ const Downloads = () => {
 
   const fetchMonitors = async () => {
     try {
-      const res = await axios.get('/api/monitors');
+      const res = await api.get('/api/monitors');
       setMonitors(res.data || []);
     } catch {
       setMonitors([]);
@@ -42,7 +42,7 @@ const Downloads = () => {
   const fetchDownloads = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/dashboard/downloads', {
+      const res = await api.get('/api/dashboard/downloads', {
         params: {
           q: q || undefined,
           monitorId: monitorId || undefined,

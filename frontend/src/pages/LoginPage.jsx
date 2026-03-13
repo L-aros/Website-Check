@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Card, Form, Input, Button, Typography, message, Layout } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../auth/AuthContext';
 
 const { Title } = Typography;
 const { Content } = Layout;
@@ -12,12 +12,12 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { authenticated, login } = useAuth();
 
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      const res = await axios.post('/api/auth/login', values);
-      localStorage.setItem('token', res.data.token);
+      await login(values.password);
       message.success(t('common.login') + ' ' + t('common.success', { defaultValue: 'Success' }));
       navigate('/');
     } catch (error) {
@@ -26,6 +26,10 @@ const LoginPage = () => {
       setLoading(false);
     }
   };
+
+  if (authenticated) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <Layout style={{ minHeight: '100vh', justifyContent: 'center', alignItems: 'center' }} className="login-page">

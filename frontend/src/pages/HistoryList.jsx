@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Timeline, Card, Tag, Button, Image, List, Typography, App, Space } from 'antd';
+import { Timeline, Card, Tag, Button, Image, List, Typography, App, Space, Modal, Spin } from 'antd';
 import { ArrowLeftOutlined, DownloadOutlined, FileTextOutlined, PictureOutlined, LinkOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import api from '../lib/api';
 
 const { Text } = Typography;
 
@@ -55,6 +55,10 @@ const HistoryList = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [diffOpen, setDiffOpen] = useState({});
+  const [snapshotOpen, setSnapshotOpen] = useState(false);
+  const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [snapshotHtml, setSnapshotHtml] = useState('');
+  const [snapshotTitle, setSnapshotTitle] = useState('');
   const { id } = useParams();
   const navigate = useNavigate();
   const { message } = App.useApp();
@@ -67,7 +71,7 @@ const HistoryList = () => {
 
   const fetchMonitor = async () => {
     try {
-      const res = await axios.get(`/api/monitors/${id}`);
+      const res = await api.get(`/api/monitors/${id}`);
       setMonitor(res.data);
     } catch (error) {
       setMonitor(null);
@@ -77,7 +81,7 @@ const HistoryList = () => {
   const fetchHistory = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`/api/monitors/${id}/history`);
+      const res = await api.get(`/api/monitors/${id}/history`);
       setData(res.data);
     } catch (error) {
       message.error('Failed to load history');
@@ -111,6 +115,23 @@ const HistoryList = () => {
     }
   };
 
+  const openSnapshot = async (item) => {
+    setSnapshotOpen(true);
+    setSnapshotLoading(true);
+    setSnapshotHtml('');
+    setSnapshotTitle(`${t('history.viewSnapshot')} #${item.id}`);
+
+    try {
+      const res = await api.get(`/api/monitors/${id}/history/${item.id}/snapshot`);
+      setSnapshotHtml(res.data?.html || '');
+    } catch {
+      message.error(t('history.viewSnapshot') + ' ' + t('common.failed', { defaultValue: 'failed' }));
+      setSnapshotOpen(false);
+    } finally {
+      setSnapshotLoading(false);
+    }
+  };
+
   return (
     <Card 
       title={t('history.title')}
@@ -121,6 +142,33 @@ const HistoryList = () => {
       }
       variant="borderless"
     >
+      <Modal
+        open={snapshotOpen}
+        onCancel={() => setSnapshotOpen(false)}
+        footer={null}
+        title={snapshotTitle}
+        width="90vw"
+        styles={{ body: { padding: 12 } }}
+      >
+        {snapshotLoading ? (
+          <div style={{ minHeight: '60vh', display: 'grid', placeItems: 'center' }}>
+            <Spin size="large" />
+          </div>
+        ) : (
+          <iframe
+            title={snapshotTitle}
+            sandbox=""
+            srcDoc={snapshotHtml}
+            style={{
+              width: '100%',
+              minHeight: '70vh',
+              border: '1px solid #f0f0f0',
+              borderRadius: 8,
+              background: '#fff',
+            }}
+          />
+        )}
+      </Modal>
       <Timeline
         mode="left"
         style={{ marginTop: 20 }}
@@ -229,7 +277,7 @@ const HistoryList = () => {
                         </div>
 
                         {/* Screenshot */}
-                        {item.screenshotPath && (
+                        {item.hasScreenshot && item.screenshotUrl && (
                             <div style={{ marginBottom: 16 }}>
                                 <Text type="secondary" style={{ fontSize: 12, marginBottom: 4, display: 'block' }}>
                                     <PictureOutlined /> {t('history.screenshot')}
@@ -237,8 +285,8 @@ const HistoryList = () => {
                                 <div style={{ border: '1px solid #f0f0f0', borderRadius: 4, overflow: 'hidden', display: 'inline-block' }}>
                                     <Image 
                                         height={120}
-                                        src={`/api/storage/screenshots/${item.screenshotPath}`}
-                                        placeholder={<Image preview={false} src={`/api/storage/screenshots/${item.screenshotPath}?width=20`} />}
+                                        src={item.screenshotUrl}
+                                        placeholder={<Image preview={false} src={item.screenshotUrl} />}
                                     />
                                 </div>
                             </div>
@@ -276,14 +324,13 @@ const HistoryList = () => {
                         )}
 
                         {/* HTML Snapshot */}
-                        {item.htmlPath && (
+                        {item.hasSnapshot && (
                             <div style={{ marginTop: 12, textAlign: 'right' }}>
                                 <Button 
                                     type="link" 
                                     size="small" 
                                     icon={<FileTextOutlined />}
-                                    href={`/api/storage/archives/${item.htmlPath}`}
-                                    target="_blank"
+                                    onClick={() => openSnapshot(item)}
                                 >
                                     {t('history.viewSnapshot')}
                                 </Button>

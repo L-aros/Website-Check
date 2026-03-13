@@ -6,8 +6,8 @@ import {
   AlertOutlined, 
   CloudDownloadOutlined 
 } from '@ant-design/icons';
-import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import api from '../lib/api';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -26,7 +26,7 @@ const Dashboard = () => {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/dashboard/stats');
+      const res = await api.get('/api/dashboard/stats');
       setStats(res.data);
     } catch (error) {
       console.error(error);

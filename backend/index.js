@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -19,9 +20,45 @@ const { logger } = require('./utils/logger');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
+const isProd = String(process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
+
+const parseCorsOrigins = () => {
+  const configured = String(process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (configured.length > 0) return configured;
+  if (isProd) return [];
+
+  return [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:4173',
+    'http://127.0.0.1:4173',
+  ];
+};
+
+const allowedOrigins = new Set(parseCorsOrigins());
+
+const corsOptions = {
+  credentials: true,
+  origin(origin, callback) {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    if (allowedOrigins.has(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(null, false);
+  },
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser());
 app.use((req, res, next) => {
   const requestId = String(req.headers['x-request-id'] || '').trim() || crypto.randomUUID();
   req.requestId = requestId;
@@ -42,21 +79,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// Static files
-const storageDir = path.join(__dirname, 'storage');
-app.use('/api/storage/screenshots', express.static(path.join(storageDir, 'screenshots')));
-app.use('/api/storage/archives', express.static(path.join(storageDir, 'archives')));
-
-// Routes
 app.use('/', publicRoutes);
 app.use('/api/auth', authRoutes);
-// Protect API routes
 app.use('/api/monitors', verifyToken, monitorRoutes);
 app.use('/api/dashboard', verifyToken, dashboardRoutes);
 app.use('/api/settings', verifyToken, settingsRoutes);
 app.use('/api/storage', storageRoutes);
 
-// Serve frontend (production build) if available
 const distDir = path.join(__dirname, '..', 'frontend', 'dist');
 const shouldServeDist =
   fs.existsSync(distDir) &&
@@ -64,6 +93,7 @@ const shouldServeDist =
     String(process.env.SERVE_FRONTEND || '')
       .trim()
       .toLowerCase() === 'true');
+
 if (shouldServeDist) {
   app.use(
     '/assets',
@@ -84,7 +114,7 @@ if (shouldServeDist) {
       },
     })
   );
-  app.get('/assets/*', (req, res) => {
+  app.get('/assets/*', (_req, res) => {
     res.status(404).end();
   });
   app.get('*', (req, res) => {
@@ -103,22 +133,27 @@ if (shouldServeDist) {
   });
 }
 
-// Start server
 const startServer = async () => {
   validateEnv();
+  const ok = await syncDatabase();
+  if (!ok) {
+    const err = new Error('Database initialization failed');
+    err.code = 'DB_INIT_FAILED';
+    throw err;
+  }
+
+  try {
+    await schedulerService.init();
+  } catch (error) {
+    logger.error({ err: error }, 'scheduler_init_failed');
+  }
+
   app.listen(PORT, () => {
     logger.info({ port: PORT }, 'server_listening');
   });
-
-  (async () => {
-    const ok = await syncDatabase();
-    if (!ok) return;
-    try {
-      await schedulerService.init();
-    } catch (e) {
-      logger.error({ err: e }, 'scheduler_init_failed');
-    }
-  })();
 };
 
-startServer();
+startServer().catch((error) => {
+  logger.error({ err: error }, 'startup_failed');
+  process.exit(1);
+});

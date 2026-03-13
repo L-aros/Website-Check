@@ -11,6 +11,8 @@ router.get('/:id', monitorController.getMonitor);
 router.put('/:id', monitorController.updateMonitor);
 router.delete('/:id', monitorController.deleteMonitor);
 router.get('/:id/history', monitorController.getHistory);
+router.get('/:id/history/:historyId/screenshot', monitorController.getHistoryScreenshot);
+router.get('/:id/history/:historyId/snapshot', monitorController.getHistorySnapshot);
 router.get('/:id/notifications', notificationController.getMonitorNotifications);
 router.get('/:id/links', linkController.getLinks);
 router.get('/:id/link-logs', linkController.getLinkLogs);

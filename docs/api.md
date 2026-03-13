@@ -1,42 +1,57 @@
-# API 文档（概要）
+# API Reference
 
-后端 API 统一以 `/api` 为前缀。除登录接口外，所有接口都需要携带：
-- `Authorization: Bearer <token>`
+All backend routes are under `/api`.
 
-## 1. 认证
+## Authentication
 
-### 1.1 登录
-POST `/api/auth/login`
+Authentication is cookie-based.
 
-Body：
+- `POST /api/auth/login`
+  - Body:
+
 ```json
-{ "password": "你的 ADMIN_PASSWORD" }
+{ "password": "your-admin-password" }
 ```
 
-Response：
-```json
-{ "token": "<jwt>" }
-```
+  - Success response:
 
-## 2. 系统设置
-
-### 2.1 获取设置
-GET `/api/settings`
-
-Response：
 ```json
 {
-  "autoDownloadAttachmentsFromNewLinks": false,
-  "attachmentDateAfter": "",
-  "attachmentLogLevel": "info",
-  "maxNewLinksPerCheck": 20
+  "authenticated": true,
+  "user": { "role": "admin" }
 }
 ```
 
-### 2.2 更新设置（可部分更新）
-PUT `/api/settings`
+  - The server sets `Set-Cookie: auth_token=...; HttpOnly; SameSite=Lax; Path=/`.
+  - In production the cookie is also `Secure`.
 
-Body：
+- `GET /api/auth/session`
+
+```json
+{
+  "authenticated": true,
+  "user": { "role": "admin" }
+}
+```
+
+- `POST /api/auth/logout`
+
+```json
+{
+  "authenticated": false,
+  "user": null
+}
+```
+
+Clients must send credentials with requests. Do not use `Authorization: Bearer`.
+
+## Settings
+
+- `GET /api/settings`
+- `PUT /api/settings`
+
+Example payload:
+
 ```json
 {
   "autoDownloadAttachmentsFromNewLinks": true,
@@ -46,122 +61,96 @@ Body：
 }
 ```
 
-## 3. 任务（监控项）
+## Monitors
 
-### 3.1 创建任务
-POST `/api/monitors`
+- `POST /api/monitors`
+- `GET /api/monitors`
+- `GET /api/monitors/:id`
+- `PUT /api/monitors/:id`
+- `DELETE /api/monitors/:id`
+- `GET /api/monitors/:id/history`
+- `POST /api/monitors/:id/check`
 
-Body（常用字段示例，实际可按前端表单提交）：
+Create/update payload fields are whitelist-based. Internal system fields such as `lastContentHash`, `lastLinksHash`, `baselineLinksProcessedAt`, and `lastCheckTime` are not accepted from user input.
+
+Example monitor payload:
+
 ```json
 {
-  "name": "示例任务",
+  "name": "Example monitor",
   "url": "https://example.com/list",
   "selectorType": "css",
   "selector": "#content",
   "frequency": "*/30 * * * *",
   "status": "active",
   "saveHtml": true,
-  "trackLinks": false,
-  "linkScopeSelector": "",
+  "trackLinks": true,
+  "linkScopeSelector": "#content",
+  "downloadAttachments": false,
+  "downloadAttachmentsFromNewLinks": true,
+  "attachmentTypes": "pdf,docx,xlsx,zip",
   "matchType": "none",
   "matchPattern": "",
-  "matchIgnoreCase": true,
-  "downloadAttachments": false,
-  "downloadAttachmentsFromNewLinks": false,
-  "attachmentTypes": "pdf,doc,docx,xls,xlsx,zip,rar"
+  "matchIgnoreCase": true
 }
 ```
 
-### 3.2 任务列表
-GET `/api/monitors`
+Manual trigger response:
 
-### 3.3 获取任务详情
-GET `/api/monitors/:id`
-
-### 3.4 更新任务
-PUT `/api/monitors/:id`
-
-### 3.5 删除任务
-DELETE `/api/monitors/:id`
-
-### 3.6 手动触发一次检查
-POST `/api/monitors/:id/check`
-
-Response：
-```json
-{ "message": "Check triggered successfully" }
-```
-
-## 4. 历史记录与统计
-
-### 4.1 查看某任务历史记录
-GET `/api/monitors/:id/history`
-
-### 4.2 Dashboard 统计
-GET `/api/dashboard/stats`
-
-## 5. 附件下载列表（聚合）
-
-### 5.1 下载列表
-GET `/api/dashboard/downloads`
-
-Query：
-- `q`：文件名关键字
-- `monitorId`：任务 id
-- `ext`：后缀（不含点）
-- `limit`：最大 200
-
-Response（items 字段示例）：
 ```json
 {
-  "items": [
-    {
-      "monitorId": 1,
-      "monitorName": "xxx",
-      "monitorUrl": "https://example.com/list",
-      "changeHistoryId": 123,
-      "checkTime": "2026-02-06T00:00:00.000Z",
-      "fileName": "a.pdf",
-      "storedPath": "monitor_1_...._a.pdf",
-      "size": 12345,
-      "sourceLink": "https://example.com/article/1",
-      "sourceTitle": "文章标题",
-      "downloadUrl": "/api/storage/downloads/monitor_1_...._a.pdf"
-    }
-  ]
+  "queued": true
 }
 ```
 
-## 6. 链接监控（用于“新增链接触发”）
+If the same monitor is already running or queued:
 
-### 6.1 获取已发现链接
-GET `/api/monitors/:id/links`
+```json
+{
+  "queued": false,
+  "reason": "already_pending"
+}
+```
 
-说明：返回该任务已发现的链接集合（用于识别新增链接）。
+If the monitor is not `active`, the server returns `409`.
 
-### 6.2 链接日志
-GET `/api/monitors/:id/link-logs`
+## History assets
 
-Query：
-- `limit`：默认 200，最大 500
-- `minLevel`：`error|warn|info|debug`
+Screenshot and snapshot access is bound to an authenticated monitor history record.
 
-## 7. 附件监控与日志
+- `GET /api/monitors/:id/history/:historyId/screenshot`
+- `GET /api/monitors/:id/history/:historyId/snapshot`
 
-### 7.1 获取已发现/跟踪的附件
-GET `/api/monitors/:id/attachments`
+Snapshot response example:
 
-### 7.2 附件日志
-GET `/api/monitors/:id/attachment-logs`
+```json
+{
+  "html": "<!doctype html>...",
+  "fileName": "monitor_1_1234567890.html"
+}
+```
 
-Query：
-- `limit`：默认 200，最大 500
-- `minLevel`：`error|warn|info|debug`（返回该级别及更严重级别）
-- `attachmentId`：仅看某一个附件的日志
+The snapshot payload contains sanitized HTML only. It is intended to be rendered inside a sandboxed iframe in the application.
 
-## 8. 静态文件访问
+## Downloads
 
-说明：以下路径均为后端静态目录映射（见后端 `storage/`）。
-- `/api/storage/downloads/<filename>`：下载已落盘的附件
-- `/api/storage/screenshots/<filename>`：查看截图
-- `/api/storage/archives/<filename>`：查看 HTML 快照（已注入 base href，快照内相对链接可跳原站）
+- `GET /api/dashboard/downloads`
+- `GET /d/:token`
+
+Attachment short links remain supported through `/d/:token`.
+
+## Monitor link and attachment inspection
+
+- `GET /api/monitors/:id/links`
+- `GET /api/monitors/:id/link-logs`
+- `GET /api/monitors/:id/attachments`
+- `GET /api/monitors/:id/attachment-logs`
+
+## Removed public file routes
+
+These old routes are no longer available:
+
+- `/api/storage/screenshots/<filename>`
+- `/api/storage/archives/<filename>`
+
+Only attachment downloads under `/d/:token` remain externally accessible.

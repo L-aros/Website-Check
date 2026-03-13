@@ -1,9 +1,7 @@
 const jwt = require('jsonwebtoken');
+const { getJwtSecret } = require('./security');
 
-const getSecret = () => {
-  const base = String(process.env.JWT_SECRET || '').trim() || 'dev_secret_change_me';
-  return `${base}::download`;
-};
+const getSecret = () => `${getJwtSecret()}::download`;
 
 const signDownloadToken = ({ path, name }, ttlSeconds = 300) => {
   const p = String(path || '').trim();
@@ -28,4 +26,3 @@ const verifyDownloadToken = (token) => {
 };
 
 module.exports = { signDownloadToken, verifyDownloadToken };
-

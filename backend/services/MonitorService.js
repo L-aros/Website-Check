@@ -14,6 +14,56 @@ class MonitorService {
   constructor() {
     this.log = logger.child({ module: 'MonitorService' });
   }
+
+  resolveBrowserExecutablePath() {
+    const configured = String(process.env.PUPPETEER_EXECUTABLE_PATH || '').trim();
+    if (configured && fs.existsSync(configured)) return configured;
+
+    const platform = process.platform;
+    const candidates = [];
+
+    if (platform === 'win32') {
+      const localAppData = String(process.env.LOCALAPPDATA || '').trim();
+      candidates.push(
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
+      );
+      if (localAppData) {
+        candidates.push(
+          path.join(localAppData, 'Google', 'Chrome', 'Application', 'chrome.exe'),
+          path.join(localAppData, 'Microsoft', 'Edge', 'Application', 'msedge.exe')
+        );
+      }
+    } else if (platform === 'darwin') {
+      candidates.push(
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+        '/Applications/Chromium.app/Contents/MacOS/Chromium'
+      );
+    } else {
+      candidates.push(
+        '/usr/bin/google-chrome',
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/chromium',
+        '/usr/bin/chromium-browser',
+        '/snap/bin/chromium'
+      );
+    }
+
+    for (const candidate of candidates) {
+      if (candidate && fs.existsSync(candidate)) return candidate;
+    }
+
+    try {
+      const managed = puppeteer.executablePath();
+      if (managed && fs.existsSync(managed)) return managed;
+    } catch {}
+
+    return '';
+  }
+
   escapeHtmlAttr(value) {
     return String(value)
       .replace(/&/g, '&amp;')
@@ -57,6 +107,15 @@ class MonitorService {
     }
   }
 
+  getUrlFileName(url) {
+    try {
+      const u = new URL(url);
+      return decodeURIComponent(path.basename(u.pathname || ''));
+    } catch {
+      return path.basename(String(url || ''));
+    }
+  }
+
   normalizeUrl(raw) {
     try {
       const u = new URL(raw);
@@ -72,6 +131,121 @@ class MonitorService {
 
   urlHash(normalizedUrl) {
     return crypto.createHash('sha256').update(normalizedUrl).digest('hex');
+  }
+
+  getHeader(headers, name) {
+    if (!headers || !name) return '';
+    const lowered = String(name).toLowerCase();
+    const key = Object.keys(headers).find((item) => String(item).toLowerCase() === lowered);
+    return key ? String(headers[key] || '') : '';
+  }
+
+  getExtensionFromName(name) {
+    const ext = path.extname(String(name || '')).replace('.', '').toLowerCase();
+    return ext || '';
+  }
+
+  extensionFromContentType(contentType) {
+    const normalized = String(contentType || '').split(';')[0].trim().toLowerCase();
+    const map = {
+      'application/pdf': 'pdf',
+      'application/zip': 'zip',
+      'application/x-zip-compressed': 'zip',
+      'application/msword': 'doc',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+      'application/vnd.ms-excel': 'xls',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+      'application/vnd.ms-powerpoint': 'ppt',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+      'text/csv': 'csv',
+      'text/plain': 'txt',
+      'application/vnd.rar': 'rar',
+      'application/x-rar-compressed': 'rar',
+      'application/x-7z-compressed': '7z',
+      'application/gzip': 'gz',
+      'application/x-gzip': 'gz',
+      'application/x-tar': 'tar',
+    };
+    return map[normalized] || '';
+  }
+
+  isHtmlLikeResponse(headers) {
+    const contentType = this.getHeader(headers, 'content-type').toLowerCase();
+    return contentType.includes('text/html') || contentType.includes('application/xhtml+xml');
+  }
+
+  parseContentDispositionFilename(headerValue) {
+    const header = String(headerValue || '');
+    if (!header) return '';
+
+    const starMatch = header.match(/filename\*=([^']*)''([^;]+)/i);
+    if (starMatch && starMatch[2]) {
+      try {
+        return decodeURIComponent(starMatch[2]);
+      } catch {
+        return starMatch[2];
+      }
+    }
+
+    const quotedMatch = header.match(/filename="([^"]+)"/i);
+    if (quotedMatch && quotedMatch[1]) return quotedMatch[1];
+
+    const plainMatch = header.match(/filename=([^;]+)/i);
+    if (plainMatch && plainMatch[1]) return plainMatch[1].trim();
+
+    return '';
+  }
+
+  sanitizeFileName(name, urlHash, extension) {
+    const raw = String(name || '').replace(/[\u0000-\u001f<>:"/\\|?*]+/g, '_').trim();
+    const normalizedExt = String(extension || '').trim().toLowerCase().replace(/^\./, '');
+    const fallbackBase = `download-${String(urlHash || '').slice(0, 12) || 'file'}`;
+
+    let stem = raw.replace(/[. ]+$/g, '');
+    if (!stem) stem = fallbackBase;
+
+    let ext = this.getExtensionFromName(stem);
+    if (!ext && normalizedExt) {
+      stem = `${stem}.${normalizedExt}`;
+      ext = normalizedExt;
+    }
+
+    if (!ext && normalizedExt) ext = normalizedExt;
+    const parsed = path.parse(stem);
+    const safeBase = String(parsed.name || fallbackBase).slice(0, 120) || fallbackBase;
+    const safeExt = (ext || '').slice(0, 12);
+    return safeExt ? `${safeBase}.${safeExt}` : safeBase;
+  }
+
+  resolveAttachmentMeta(url, headers = {}) {
+    const normalizedUrl = this.normalizeUrl(url) || String(url || '');
+    const urlHash = this.urlHash(normalizedUrl);
+    const headerName = this.parseContentDispositionFilename(this.getHeader(headers, 'content-disposition'));
+    const urlName = this.getUrlFileName(url);
+    const contentType = this.getHeader(headers, 'content-type');
+    const extension =
+      this.getExtensionFromName(headerName) ||
+      this.getExtensionFromName(urlName) ||
+      this.extensionFromContentType(contentType);
+
+    const preferredName = headerName || urlName || '';
+    const safeName = this.sanitizeFileName(preferredName, urlHash, extension);
+
+    return {
+      urlHash,
+      extension,
+      contentType,
+      fileName: safeName,
+    };
+  }
+
+  buildStoredDownloadName(monitorId, timestamp, urlHash, fileName) {
+    return `monitor_${monitorId}_${timestamp}_${String(urlHash || '').slice(0, 16)}_${fileName}`;
+  }
+
+  isPotentialAttachmentUrl(url, allowedExts) {
+    const ext = this.getUrlExtension(url);
+    return !ext || allowedExts.has(ext);
   }
 
   parseDateFilter(input) {
@@ -143,6 +317,71 @@ class MonitorService {
     return urls || [];
   }
 
+  async navigatePage(page, url) {
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    try {
+      await page.waitForNetworkIdle({ idleTime: 1000, timeout: 5000 });
+    } catch {}
+  }
+
+  async waitForXPath(page, xpathExpression, timeout = 10000) {
+    await page.waitForFunction(
+      (expression) => {
+        try {
+          return Boolean(
+            document.evaluate(
+              expression,
+              document,
+              null,
+              XPathResult.FIRST_ORDERED_NODE_TYPE,
+              null
+            ).singleNodeValue
+          );
+        } catch {
+          return false;
+        }
+      },
+      { timeout },
+      xpathExpression
+    );
+  }
+
+  async getXPathTextContent(page, xpathExpression) {
+    return page.evaluate((expression) => {
+      const node = document.evaluate(
+        expression,
+        document,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
+        null
+      ).singleNodeValue;
+      return node ? node.textContent || '' : '';
+    }, xpathExpression);
+  }
+
+  async getXPathLinks(page, xpathExpression) {
+    return page.evaluate((expression) => {
+      const node = document.evaluate(
+        expression,
+        document,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
+        null
+      ).singleNodeValue;
+      if (!node || typeof node.querySelectorAll !== 'function') return [];
+
+      const uniq = new Set();
+      node.querySelectorAll('a[href]').forEach((anchor) => {
+        try {
+          uniq.add(new URL(anchor.getAttribute('href'), window.location.href).href);
+        } catch {
+          return;
+        }
+      });
+      return Array.from(uniq);
+    }, xpathExpression);
+  }
+
   async discoverLinkUrls(page, monitor) {
     const useCssScope = Boolean(monitor.linkScopeSelector);
     const scopeSelector = monitor.linkScopeSelector || monitor.selector;
@@ -150,20 +389,8 @@ class MonitorService {
 
     try {
       if (scopeSelectorType === 'xpath') {
-        const elements = await page.$x(scopeSelector);
-        if (elements.length > 0) {
-          return (await page.evaluate((el) => {
-            const uniq = new Set();
-            el.querySelectorAll('a[href]').forEach((a) => {
-              try {
-                uniq.add(new URL(a.getAttribute('href'), window.location.href).href);
-              } catch {
-                return;
-              }
-            });
-            return Array.from(uniq);
-          }, elements[0])) || [];
-        }
+        await this.waitForXPath(page, scopeSelector, 3000);
+        return (await this.getXPathLinks(page, scopeSelector)) || [];
       } else {
         await page.waitForSelector(scopeSelector, { timeout: 3000 });
         return (await page.$eval(scopeSelector, (el) => {
@@ -183,18 +410,6 @@ class MonitorService {
     }
 
     return [];
-  }
-
-  isAttachmentCandidate(url, extraExtensions = []) {
-    const ext = path.extname(url).replace('.', '').toLowerCase();
-    if (!ext) return false;
-    const defaultExts = new Set([
-      'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
-      'zip', 'rar', '7z', 'tar', 'gz',
-      'csv', 'txt',
-    ]);
-    for (const e of extraExtensions) defaultExts.add(String(e || '').trim().replace('.', '').toLowerCase());
-    return defaultExts.has(ext);
   }
 
   async headWithFallback(url) {
@@ -222,6 +437,90 @@ class MonitorService {
     }
   }
 
+  async inspectAttachment(url, allowedExts) {
+    const response = await this.headWithFallback(url);
+    const lastModifiedHeader = this.getHeader(response.headers, 'last-modified');
+    const lastModifiedAt = lastModifiedHeader ? new Date(lastModifiedHeader) : null;
+    const etag = this.getHeader(response.headers, 'etag') || null;
+    const contentLengthValue = Number(this.getHeader(response.headers, 'content-length'));
+    const meta = this.resolveAttachmentMeta(url, response.headers);
+
+    return {
+      response,
+      meta,
+      etag,
+      lastModifiedAt:
+        lastModifiedAt && !Number.isNaN(lastModifiedAt.getTime()) ? lastModifiedAt : null,
+      contentLength: Number.isFinite(contentLengthValue) ? contentLengthValue : null,
+      isAllowed:
+        Boolean(meta.extension && allowedExts.has(meta.extension)) &&
+        !this.isHtmlLikeResponse(response.headers),
+    };
+  }
+
+  async downloadAttachment({
+    attachmentUrl,
+    monitor,
+    timestamp,
+    downloadDir,
+    allowedExts,
+    sourceLink = null,
+    sourceTitle = null,
+    initialHeaders = {},
+  }) {
+    const response = await axios({
+      url: attachmentUrl,
+      method: 'GET',
+      responseType: 'stream',
+      timeout: 60000,
+      maxRedirects: 5,
+      validateStatus: () => true,
+    });
+
+    if (response.status >= 400) {
+      if (response.data && typeof response.data.destroy === 'function') response.data.destroy();
+      throw new Error(`http_${response.status}`);
+    }
+
+    const mergedHeaders = { ...(initialHeaders || {}), ...(response.headers || {}) };
+    const meta = this.resolveAttachmentMeta(attachmentUrl, mergedHeaders);
+    if (!meta.extension || !allowedExts.has(meta.extension) || this.isHtmlLikeResponse(mergedHeaders)) {
+      if (response.data && typeof response.data.destroy === 'function') response.data.destroy();
+      return null;
+    }
+
+    const storedName = this.buildStoredDownloadName(monitor.id, timestamp, meta.urlHash, meta.fileName);
+    const filePath = path.join(downloadDir, storedName);
+    const writer = fs.createWriteStream(filePath);
+    response.data.pipe(writer);
+
+    try {
+      await new Promise((resolve, reject) => {
+        writer.on('finish', resolve);
+        writer.on('error', reject);
+      });
+    } catch (error) {
+      try {
+        writer.destroy();
+      } catch {}
+      try {
+        await fs.promises.unlink(filePath);
+      } catch {}
+      throw error;
+    }
+
+    return {
+      record: {
+        name: meta.fileName,
+        path: storedName,
+        size: fs.statSync(filePath).size,
+        sourceLink,
+        sourceTitle,
+      },
+      meta,
+    };
+  }
+
   async processLinksForAttachments({ browser, monitor, linkUrls, exts, cutoff, downloadDir, timestamp }) {
     const downloadedFiles = [];
     if (!browser) return downloadedFiles;
@@ -241,7 +540,7 @@ class MonitorService {
         });
 
         articlePage = await browser.newPage();
-        await articlePage.goto(linkUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+        await this.navigatePage(articlePage, linkUrl);
         const sourceTitle = (await articlePage.title()) || '';
 
         const rawAttachments = await this.discoverAttachmentUrls(articlePage);
@@ -250,8 +549,7 @@ class MonitorService {
         for (const raw of rawAttachments) {
           const normalized = this.normalizeUrl(raw);
           if (!normalized) continue;
-          const ext = this.getUrlExtension(normalized);
-          if (!ext || !allowedExts.has(ext)) continue;
+          if (!this.isPotentialAttachmentUrl(normalized, allowedExts)) continue;
           uniq.add(normalized);
         }
 
@@ -296,25 +594,24 @@ class MonitorService {
 
           let lastModifiedAt = null;
           let isFiltered = false;
+          let inspectResult = null;
           try {
-            const headRes = await this.headWithFallback(attachmentUrl);
-            const lastModifiedHeader = headRes.headers && (headRes.headers['last-modified'] || headRes.headers['Last-Modified']);
-            lastModifiedAt = lastModifiedHeader ? new Date(lastModifiedHeader) : null;
+            inspectResult = await this.inspectAttachment(attachmentUrl, allowedExts);
+            lastModifiedAt = inspectResult.lastModifiedAt;
             if (cutoff && lastModifiedAt && !Number.isNaN(lastModifiedAt.getTime()) && lastModifiedAt <= cutoff) {
               isFiltered = true;
             }
 
-            const etag = headRes.headers && (headRes.headers.etag || headRes.headers.ETag);
-            const lenHeader = headRes.headers && (headRes.headers['content-length'] || headRes.headers['Content-Length']);
-            const contentLength = lenHeader ? Number(lenHeader) : null;
-
             await row.update({
               lastCheckedAt: new Date(),
-              status: isFiltered ? 'filtered' : row.status,
+              status: isFiltered ? 'filtered' : inspectResult.isAllowed ? row.status : 'ignored',
               lastStatusAt: isFiltered ? new Date() : row.lastStatusAt,
-              etag: etag || row.etag,
+              etag: inspectResult.etag || row.etag,
               lastModifiedAt: lastModifiedAt && !Number.isNaN(lastModifiedAt.getTime()) ? lastModifiedAt : row.lastModifiedAt,
-              contentLength: Number.isFinite(Number(contentLength)) ? Number(contentLength) : row.contentLength,
+              contentLength:
+                Number.isFinite(Number(inspectResult.contentLength))
+                  ? Number(inspectResult.contentLength)
+                  : row.contentLength,
               lastError: null,
             });
           } catch (e) {
@@ -344,6 +641,19 @@ class MonitorService {
             continue;
           }
 
+          if (!inspectResult || !inspectResult.isAllowed) {
+            await attachmentLoggingService.log({
+              monitorId: monitor.id,
+              attachmentId: row.id,
+              attachmentUrl: attachmentUrl,
+              level: 'debug',
+              event: 'ignored',
+              message: 'attachment ignored because extension or content type is not allowed',
+              meta: { sourceLink: linkUrl },
+            });
+            continue;
+          }
+
           try {
             await attachmentLoggingService.log({
               monitorId: monitor.id,
@@ -355,33 +665,18 @@ class MonitorService {
               meta: { sourceLink: linkUrl },
             });
 
-            const filename = `monitor_${monitor.id}_${timestamp}_${path.basename(attachmentUrl)}`;
-            const filePath = path.join(downloadDir, filename);
-
-            const response = await axios({
-              url: attachmentUrl,
-              method: 'GET',
-              responseType: 'stream',
-              timeout: 60000,
-              maxRedirects: 5,
-            });
-
-            const writer = fs.createWriteStream(filePath);
-            response.data.pipe(writer);
-
-            await new Promise((resolve, reject) => {
-              writer.on('finish', resolve);
-              writer.on('error', reject);
-            });
-
-            const size = fs.statSync(filePath).size;
-            downloadedFiles.push({
-              name: path.basename(attachmentUrl),
-              path: filename,
-              size,
+            const downloadResult = await this.downloadAttachment({
+              attachmentUrl,
+              monitor,
+              timestamp,
+              downloadDir,
+              allowedExts,
               sourceLink: linkUrl,
               sourceTitle,
+              initialHeaders: inspectResult.response.headers,
             });
+            if (!downloadResult) continue;
+            downloadedFiles.push(downloadResult.record);
 
             await row.update({ lastDownloadedAt: new Date(), status: 'available', lastStatusAt: new Date(), lastError: null });
             await attachmentLoggingService.log({
@@ -391,7 +686,12 @@ class MonitorService {
               level: 'info',
               event: 'download_success',
               message: 'attachment downloaded (link page)',
-              meta: { filename, sourceLink: linkUrl, sourceTitle, size },
+              meta: {
+                filename: downloadResult.record.path,
+                sourceLink: linkUrl,
+                sourceTitle,
+                size: downloadResult.record.size,
+              },
             });
           } catch (err) {
             await row.update({ lastError: err.message || String(err), status: 'error', lastStatusAt: new Date() });
@@ -459,8 +759,12 @@ class MonitorService {
         headless: 'new',
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
       };
-      const executablePath = String(process.env.PUPPETEER_EXECUTABLE_PATH || '').trim();
+      const executablePath = this.resolveBrowserExecutablePath();
       if (executablePath) launchOptions.executablePath = executablePath;
+      this.log.info(
+        { monitorId: monitor.id, executablePath: executablePath || 'managed-default' },
+        'browser_launch_config'
+      );
 
       browser = await puppeteer.launch({
         ...launchOptions,
@@ -468,7 +772,7 @@ class MonitorService {
       const page = await browser.newPage();
       
       // Basic auth support can be added here
-      await page.goto(monitor.url, { waitUntil: 'networkidle2', timeout: 60000 });
+      await this.navigatePage(page, monitor.url);
 
       const shouldCollectLinks = Boolean(monitor.trackLinks || monitor.downloadAttachmentsFromNewLinks);
       let normalizedLinks = [];
@@ -491,10 +795,8 @@ class MonitorService {
       if (monitor.trackLinks) {
         content = linksContent;
       } else if (monitor.selectorType === 'xpath') {
-        const elements = await page.$x(monitor.selector);
-        if (elements.length > 0) {
-          content = await page.evaluate(el => el.textContent, elements[0]);
-        }
+        await this.waitForXPath(page, monitor.selector, 10000);
+        content = await this.getXPathTextContent(page, monitor.selector);
       } else {
         try {
           await page.waitForSelector(monitor.selector, { timeout: 10000 });
@@ -507,7 +809,6 @@ class MonitorService {
       content = content ? content.trim() : '';
       const currentHash = crypto.createHash('md5').update(content).digest('hex');
       const timestamp = Date.now();
-      const dateStr = new Date().toISOString().split('T')[0];
       const exts = (monitor.attachmentTypes || '').split(',').map((ext) => ext.trim().toLowerCase()).filter(Boolean);
       const allowedExts = this.normalizeExtensions(exts);
 
@@ -586,36 +887,18 @@ class MonitorService {
       }
 
       const attachmentsToMonitorAll = await AttachmentMonitor.findAll({ where: { monitorId: monitor.id } });
-      const attachmentsToMonitor = [];
-      for (const a of attachmentsToMonitorAll) {
-        const ext = this.getUrlExtension(a.normalizedUrl);
-        if (!ext || !allowedExts.has(ext)) {
-          if (a.status !== 'ignored') {
-            try {
-              await a.update({ status: 'ignored', lastStatusAt: new Date(), lastError: null });
-            } catch {}
-          }
-          continue;
-        }
-        if (a.status === 'ignored') continue;
-        attachmentsToMonitor.push(a);
-      }
-
-      if (attachmentsToMonitor.length > 0) {
-        for (const a of attachmentsToMonitor) {
+      if (attachmentsToMonitorAll.length > 0) {
+        for (const a of attachmentsToMonitorAll) {
           try {
-            const res = await this.headWithFallback(a.normalizedUrl);
-            const lastModifiedHeader = res.headers && (res.headers['last-modified'] || res.headers['Last-Modified']);
-            const etag = res.headers && (res.headers.etag || res.headers.ETag);
-            const lenHeader = res.headers && (res.headers['content-length'] || res.headers['Content-Length']);
-            const lastModifiedAt = lastModifiedHeader ? new Date(lastModifiedHeader) : null;
-            const contentLength = lenHeader ? Number(lenHeader) : null;
+            const inspectResult = await this.inspectAttachment(a.normalizedUrl, allowedExts);
+            const { response, lastModifiedAt, etag, contentLength, isAllowed } = inspectResult;
             const isFiltered = cutoff && lastModifiedAt && !Number.isNaN(lastModifiedAt.getTime()) && lastModifiedAt <= cutoff;
 
             let status = 'available';
             if (isFiltered) status = 'filtered';
-            else if (res.status === 404) status = 'missing';
-            else if (res.status >= 400) status = 'error';
+            else if (!isAllowed) status = 'ignored';
+            else if (response.status === 404) status = 'missing';
+            else if (response.status >= 400) status = 'error';
 
             const metaChanged = Boolean(
               (etag && etag !== a.etag) ||
@@ -631,7 +914,7 @@ class MonitorService {
               etag: etag || a.etag,
               lastModifiedAt: lastModifiedAt && !Number.isNaN(lastModifiedAt.getTime()) ? lastModifiedAt : a.lastModifiedAt,
               contentLength: Number.isFinite(contentLength) ? contentLength : a.contentLength,
-              lastError: status === 'error' ? `http_${res.status}` : null,
+              lastError: status === 'error' ? `http_${response.status}` : null,
             });
 
             if (statusChanged || metaChanged) {
@@ -642,7 +925,13 @@ class MonitorService {
                 level: 'info',
                 event: 'status_change',
                 message: 'attachment status or metadata changed',
-                meta: { status, httpStatus: res.status, etag: etag || null, lastModified: lastModifiedHeader || null, contentLength: Number.isFinite(contentLength) ? contentLength : null },
+                meta: {
+                  status,
+                  httpStatus: response.status,
+                  etag: etag || null,
+                  lastModified: lastModifiedAt ? lastModifiedAt.toISOString() : null,
+                  contentLength: Number.isFinite(contentLength) ? contentLength : null,
+                },
               });
             }
           } catch (e) {
@@ -712,10 +1001,20 @@ class MonitorService {
         const perMonitorEnabled = Boolean(monitor.downloadAttachments && exts.length > 0);
 
         if (perMonitorEnabled) {
-          const targets = (await page.$$eval('a', (as) => as.map((a) => a.href))) || [];
+          const targets =
+            (await page.$$eval('a[href]', (anchors) => {
+              const uniq = new Set();
+              anchors.forEach((anchor) => {
+                try {
+                  uniq.add(anchor.href);
+                } catch {
+                  return;
+                }
+              });
+              return Array.from(uniq);
+            })) || [];
           for (const fileUrl of targets) {
-            const ext = path.extname(fileUrl).replace('.', '').toLowerCase();
-            if (!exts.includes(ext)) continue;
+            if (!this.isPotentialAttachmentUrl(fileUrl, allowedExts)) continue;
 
             try {
               await attachmentLoggingService.log({
@@ -727,30 +1026,19 @@ class MonitorService {
                 message: 'attempting attachment download (current page)',
               });
 
-              const filename = `monitor_${monitor.id}_${timestamp}_${path.basename(fileUrl)}`;
-              const filePath = path.join(downloadDir, filename);
+              const inspectResult = await this.inspectAttachment(fileUrl, allowedExts);
+              if (!inspectResult.isAllowed) continue;
 
-              const response = await axios({
-                url: fileUrl,
-                method: 'GET',
-                responseType: 'stream',
-                timeout: 60000,
-                maxRedirects: 5,
+              const downloadResult = await this.downloadAttachment({
+                attachmentUrl: fileUrl,
+                monitor,
+                timestamp,
+                downloadDir,
+                allowedExts,
+                initialHeaders: inspectResult.response.headers,
               });
-
-              const writer = fs.createWriteStream(filePath);
-              response.data.pipe(writer);
-
-              await new Promise((resolve, reject) => {
-                writer.on('finish', resolve);
-                writer.on('error', reject);
-              });
-
-              downloadedFiles.push({
-                name: path.basename(fileUrl),
-                path: filename,
-                size: fs.statSync(filePath).size,
-              });
+              if (!downloadResult) continue;
+              downloadedFiles.push(downloadResult.record);
 
               await attachmentLoggingService.log({
                 monitorId: monitor.id,
@@ -759,7 +1047,7 @@ class MonitorService {
                 level: 'info',
                 event: 'download_success',
                 message: 'attachment downloaded (current page)',
-                meta: { filename },
+                meta: { filename: downloadResult.record.path, size: downloadResult.record.size },
               });
             } catch (err) {
               await attachmentLoggingService.log({

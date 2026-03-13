@@ -11,8 +11,9 @@ const main = async () => {
   const listUrl = 'http://localhost:5174/test-pages/list.html';
   const archiveDir = path.join(__dirname, '../storage/archives');
 
-  const token = (await axios.post(`${baseUrl}/api/auth/login`, { password: adminPassword })).data.token;
-  const api = axios.create({ baseURL: baseUrl, headers: { Authorization: `Bearer ${token}` } });
+  const loginRes = await axios.post(`${baseUrl}/api/auth/login`, { password: adminPassword });
+  const cookie = (loginRes.headers['set-cookie'] || []).map((v) => v.split(';')[0]).join('; ');
+  const api = axios.create({ baseURL: baseUrl, headers: { Cookie: cookie } });
 
   const payload = {
     name: `TEST_SNAPSHOT_${Date.now()}`,

@@ -47,7 +47,7 @@ const ChangeHistory = sequelize.define('ChangeHistory', {
 });
 
 // Define association
-PageMonitor.hasMany(ChangeHistory, { foreignKey: 'monitorId' });
-ChangeHistory.belongsTo(PageMonitor, { foreignKey: 'monitorId' });
+PageMonitor.hasMany(ChangeHistory, { foreignKey: 'monitorId', onDelete: 'CASCADE', hooks: true });
+ChangeHistory.belongsTo(PageMonitor, { foreignKey: 'monitorId', onDelete: 'CASCADE' });
 
 module.exports = ChangeHistory;

@@ -19,6 +19,7 @@ import {
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../theme/ThemeContext';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../auth/AuthContext';
 
 const { Header, Content, Sider } = Layout;
 
@@ -28,6 +29,7 @@ const MainLayout = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
+  const { logout } = useAuth();
   const {
     token: { colorBgContainer, colorBgElevated },
   } = theme.useToken();
@@ -36,8 +38,8 @@ const MainLayout = ({ children }) => {
     i18n.changeLanguage(lng);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 

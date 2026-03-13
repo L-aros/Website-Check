@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Form, Switch, Input, Select, Button, App, InputNumber } from 'antd';
-import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import api from '../lib/api';
 
 const Settings = () => {
   const { t } = useTranslation();
@@ -13,7 +13,7 @@ const Settings = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/settings');
+      const res = await api.get('/api/settings');
       form.setFieldsValue(res.data || {});
     } finally {
       setLoading(false);
@@ -24,7 +24,7 @@ const Settings = () => {
     const values = await form.validateFields();
     setSaving(true);
     try {
-      await axios.put('/api/settings', values);
+      await api.put('/api/settings', values);
       message.success(t('settings.saved'));
       await load();
     } finally {

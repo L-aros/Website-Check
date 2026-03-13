@@ -1,35 +1,74 @@
 const jwt = require('jsonwebtoken');
+const {
+  AUTH_COOKIE_NAME,
+  getAuthClearCookieOptions,
+  getAuthCookieOptions,
+  getJwtSecret,
+  requireConfiguredValue,
+} = require('../utils/security');
 
-const getJwtSecret = () => {
-  const secret = String(process.env.JWT_SECRET || '').trim();
-  return secret || 'dev_secret_change_me';
+const buildSessionPayload = (user) => ({
+  authenticated: true,
+  user: { role: user && user.role ? user.role : 'admin' },
+});
+
+const getAuthToken = (req) => {
+  if (!req || !req.cookies) return '';
+  return String(req.cookies[AUTH_COOKIE_NAME] || '').trim();
+};
+
+const clearAuthCookie = (res) => {
+  res.clearCookie(AUTH_COOKIE_NAME, getAuthClearCookieOptions());
 };
 
 exports.login = (req, res) => {
-  const { password } = req.body;
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  const password = String((req.body && req.body.password) || '');
+  const adminPassword = requireConfiguredValue('ADMIN_PASSWORD');
 
-  if (!adminPassword) {
-    return res.status(500).json({ error: 'Admin password not configured on server' });
+  if (password !== adminPassword) {
+    clearAuthCookie(res);
+    return res.status(401).json({ error: 'Invalid credentials' });
   }
 
-  if (password === adminPassword) {
-    const token = jwt.sign({ role: 'admin' }, getJwtSecret(), { expiresIn: '7d' });
-    res.json({ token });
-  } else {
-    res.status(401).json({ error: 'Invalid password' });
+  const token = jwt.sign({ role: 'admin' }, getJwtSecret(), { expiresIn: '7d' });
+  res.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions());
+  return res.json(buildSessionPayload({ role: 'admin' }));
+};
+
+exports.getSession = (req, res) => {
+  const token = getAuthToken(req);
+  if (!token) {
+    return res.json({ authenticated: false, user: null });
+  }
+
+  try {
+    const user = jwt.verify(token, getJwtSecret());
+    return res.json(buildSessionPayload(user));
+  } catch {
+    clearAuthCookie(res);
+    return res.json({ authenticated: false, user: null });
   }
 };
 
+exports.logout = (_req, res) => {
+  clearAuthCookie(res);
+  res.json({ authenticated: false, user: null });
+};
+
 exports.verifyToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = getAuthToken(req);
 
   if (!token) return res.status(401).json({ error: 'Access denied' });
 
   jwt.verify(token, getJwtSecret(), (err, user) => {
-    if (err) return res.status(403).json({ error: 'Invalid token' });
+    if (err) {
+      clearAuthCookie(res);
+      return res.status(401).json({ error: 'Invalid token' });
+    }
     req.user = user;
-    next();
+    return next();
   });
 };
+
+exports.AUTH_COOKIE_NAME = AUTH_COOKIE_NAME;
+exports.clearAuthCookie = clearAuthCookie;

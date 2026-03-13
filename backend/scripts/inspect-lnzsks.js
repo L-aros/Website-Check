@@ -7,10 +7,10 @@ const main = async () => {
   const targetUrl = 'https://www.lnzsks.com/listinfo/NewsList_2401_1.html';
 
   const loginRes = await axios.post(`${baseUrl}/api/auth/login`, { password: adminPassword });
-  const token = loginRes.data.token;
+  const cookie = (loginRes.headers['set-cookie'] || []).map((v) => v.split(';')[0]).join('; ');
   const api = axios.create({
     baseURL: baseUrl,
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Cookie: cookie },
   });
 
   const settings = await api.get('/api/settings');

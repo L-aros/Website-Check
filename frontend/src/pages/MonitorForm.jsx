@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Form, Input, Button, Select, Checkbox, App, Card, Collapse, Switch, Divider, Row, Col } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
-import axios from 'axios';
 import { SettingOutlined, BellOutlined, GlobalOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import api from '../lib/api';
 
 const { Option } = Select;
 
@@ -35,7 +35,7 @@ const MonitorForm = () => {
 
   const fetchMonitor = async () => {
     try {
-      const res = await axios.get(`/api/monitors/${id}`);
+      const res = await api.get(`/api/monitors/${id}`);
       form.setFieldsValue(res.data);
     } catch (error) {
       message.error('Failed to fetch monitor details');
@@ -46,10 +46,10 @@ const MonitorForm = () => {
     setLoading(true);
     try {
       if (isEdit) {
-        await axios.put(`/api/monitors/${id}`, values);
+        await api.put(`/api/monitors/${id}`, values);
         message.success(t('common.save') + ' ' + t('common.success', { defaultValue: 'Success' }));
       } else {
-        await axios.post('/api/monitors', values);
+        await api.post('/api/monitors', values);
         message.success(t('common.save') + ' ' + t('common.success', { defaultValue: 'Success' }));
       }
       navigate('/monitors');

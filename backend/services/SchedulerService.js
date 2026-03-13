@@ -10,6 +10,7 @@ class SchedulerService {
   constructor() {
     this.log = logger.child({ module: 'SchedulerService' });
     this.queue = [];
+    this.queuedMonitorIds = new Set();
     this.runningMonitorIds = new Set();
     this.activeCount = 0;
     const raw = Number(process.env.MAX_CONCURRENT_CHECKS);
@@ -17,15 +18,20 @@ class SchedulerService {
   }
 
   enqueueCheck(monitorId, runner) {
-    if (this.runningMonitorIds.has(monitorId)) return;
+    if (this.runningMonitorIds.has(monitorId) || this.queuedMonitorIds.has(monitorId)) {
+      return false;
+    }
     this.queue.push({ monitorId, runner });
+    this.queuedMonitorIds.add(monitorId);
     this.drainQueue();
+    return true;
   }
 
   drainQueue() {
     while (this.activeCount < this.maxConcurrent && this.queue.length > 0) {
       const job = this.queue.shift();
       if (!job) break;
+      this.queuedMonitorIds.delete(job.monitorId);
       if (this.runningMonitorIds.has(job.monitorId)) continue;
 
       this.runningMonitorIds.add(job.monitorId);
@@ -58,10 +64,7 @@ class SchedulerService {
   }
 
   scheduleTask(monitor) {
-    if (tasks.has(monitor.id)) {
-      tasks.get(monitor.id).stop();
-      tasks.delete(monitor.id);
-    }
+    this.stopTask(monitor.id);
 
     if (monitor.status !== 'active') return;
 
@@ -89,6 +92,8 @@ class SchedulerService {
       tasks.get(monitorId).stop();
       tasks.delete(monitorId);
     }
+    this.queuedMonitorIds.delete(monitorId);
+    this.queue = this.queue.filter((job) => job.monitorId !== monitorId);
   }
 
   stopAll() {
@@ -96,6 +101,8 @@ class SchedulerService {
       task.stop();
     }
     tasks.clear();
+    this.queue = [];
+    this.queuedMonitorIds.clear();
   }
   
   // Method to refresh a specific monitor's schedule (e.g., after update)
@@ -110,8 +117,8 @@ class SchedulerService {
 
   async runNow(monitorId) {
     const monitor = await PageMonitor.findByPk(monitorId);
-    if (!monitor || monitor.status !== 'active') return;
-    this.enqueueCheck(monitorId, async () => {
+    if (!monitor || monitor.status !== 'active') return false;
+    return this.enqueueCheck(monitorId, async () => {
       const fresh = await PageMonitor.findByPk(monitorId);
       if (!fresh || fresh.status !== 'active') return;
       await monitorService.checkMonitor(fresh);

@@ -2,6 +2,7 @@ import React from 'react';
 import { ConfigProvider, theme, App as AntdApp } from 'antd';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, useTheme } from './theme/ThemeContext';
+import { AuthProvider } from './auth/AuthContext';
 import MainLayout from './layouts/MainLayout';
 import Dashboard from './pages/Dashboard';
 import MonitorList from './pages/MonitorList';
@@ -11,28 +12,6 @@ import Downloads from './pages/Downloads';
 import Settings from './pages/Settings';
 import LoginPage from './pages/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
-import axios from 'axios';
-
-// Axios Interceptor for Token
-axios.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Handle 401
-axios.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response && error.response.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
 
 const AppContent = () => {
   const { isDarkMode } = useTheme();
@@ -143,7 +122,9 @@ const AppContent = () => {
 const App = () => {
   return (
     <ThemeProvider>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ThemeProvider>
   );
 };

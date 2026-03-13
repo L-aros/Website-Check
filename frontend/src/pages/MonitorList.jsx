@@ -13,8 +13,8 @@ import {
   StopFilled
 } from '@ant-design/icons';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import api from '../lib/api';
 
 const { Text } = Typography;
 
@@ -29,7 +29,7 @@ const MonitorList = () => {
   const fetchMonitors = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/monitors');
+      const res = await api.get('/api/monitors');
       setData(res.data);
     } catch (error) {
       message.error('Failed to load monitors');
@@ -44,7 +44,7 @@ const MonitorList = () => {
 
   const handleDelete = async (id) => {
     try {
-      await axios.delete(`/api/monitors/${id}`);
+      await api.delete(`/api/monitors/${id}`);
       message.success(t('common.delete') + ' ' + t('common.success', { defaultValue: 'Success' }));
       fetchMonitors();
     } catch (error) {
@@ -54,7 +54,11 @@ const MonitorList = () => {
 
   const handleCheckNow = async (id) => {
     try {
-      await axios.post(`/api/monitors/${id}/check`);
+      const res = await api.post(`/api/monitors/${id}/check`);
+      if (res.data?.queued === false) {
+        message.warning(t('common.checkNow') + ' ' + t('common.processing', { defaultValue: 'Already queued' }));
+        return;
+      }
       message.success(t('common.checkNow') + ' ' + t('common.success', { defaultValue: 'Success' }));
     } catch (error) {
       message.error('Failed to trigger check');
