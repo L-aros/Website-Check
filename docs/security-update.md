@@ -1,7 +1,7 @@
 # Security Update (2026-03)
 
 ## Runtime and environment
-- Minimum runtime baseline is Node.js 20.17+.
+- Minimum runtime baseline is Node.js 20.18.1+.
 - `JWT_SECRET` and `ADMIN_PASSWORD` are required in every environment.
 - Placeholder/example values are rejected at startup.
 - `CORS_ORIGINS` is a comma-separated allowlist for cookie-based cross-origin access.

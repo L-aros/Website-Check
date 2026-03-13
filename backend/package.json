@@ -4,7 +4,7 @@
   "description": "Backend for Website Monitoring System",
   "main": "index.js",
   "engines": {
-    "node": ">=20.17.0"
+    "node": ">=20.18.1"
   },
   "scripts": {
     "start": "node index.js",

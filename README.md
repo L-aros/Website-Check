@@ -64,7 +64,7 @@ Website Check 是一个面向网页内容巡检的全栈项目，提供从“定
 - axios
 
 ### 后端
-- Node.js 20.17+
+- Node.js 20.18.1+
 - Express
 - Sequelize
 - SQLite / MySQL
@@ -98,7 +98,7 @@ Website Check 是一个面向网页内容巡检的全栈项目，提供从“定
 
 ## 运行要求
 
-- Node.js `>= 20.17.0`
+- Node.js `>= 20.18.1`
 - npm
 - Windows / Linux / macOS 均可
 - 需要一个可供 Puppeteer 使用的浏览器

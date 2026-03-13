@@ -1,7 +1,7 @@
 # Deployment Guide
 
 ## Runtime requirements
-- Node.js 20.17+
+- Node.js 20.18.1+
 - Chromium or another browser binary usable by Puppeteer
 - SQLite or MySQL
 
@@ -41,7 +41,7 @@ Other important variables:
 
 ## Docker
 
-The provided Dockerfile uses Node.js `20.17.0` base images.
+The provided Dockerfile uses Node.js `20.18.1` base images.
 
 Build and run:
 
